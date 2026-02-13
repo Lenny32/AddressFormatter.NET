@@ -4,7 +4,7 @@ using System.Text.Json.Nodes;
 
 namespace AddressFormatter.Net;
 
-public static class AddressFormatterInternals
+internal static class AddressFormatterInternals
 {
     private static readonly HashSet<string> SmallDistrictCountries = new(StringComparer.Ordinal)
     {
@@ -22,7 +22,7 @@ public static class AddressFormatterInternals
         .Cast<string>()
         .ToHashSet(StringComparer.Ordinal);
 
-    public static Dictionary<string, object?> DetermineCountryCode(
+    internal static Dictionary<string, object?> DetermineCountryCode(
         Dictionary<string, object?> input,
         string? fallbackCountryCode = null)
     {
@@ -99,7 +99,7 @@ public static class AddressFormatterInternals
         return input;
     }
 
-    public static Dictionary<string, object?> NormalizeComponentKeys(Dictionary<string, object?> input)
+    internal static Dictionary<string, object?> NormalizeComponentKeys(Dictionary<string, object?> input)
     {
         var inputKeys = input.Keys.ToList();
         foreach (var key in inputKeys)
@@ -119,7 +119,7 @@ public static class AddressFormatterInternals
         return input;
     }
 
-    public static Dictionary<string, object?> ApplyAliases(Dictionary<string, object?> input)
+    internal static Dictionary<string, object?> ApplyAliases(Dictionary<string, object?> input)
     {
         var inputKeys = input.Keys.ToList();
         var countryCode = GetString(input, "country_code");
@@ -147,7 +147,7 @@ public static class AddressFormatterInternals
         return input;
     }
 
-    public static string? GetStateCode(string state, string countryCode)
+    internal static string? GetStateCode(string state, string countryCode)
     {
         if (TemplateData.StateCodes[countryCode] is not JsonArray entries)
         {
@@ -188,7 +188,7 @@ public static class AddressFormatterInternals
         return null;
     }
 
-    public static string? GetCountyCode(string county, string countryCode)
+    internal static string? GetCountyCode(string county, string countryCode)
     {
         if (TemplateData.CountyCodes[countryCode] is not JsonArray entries)
         {
@@ -235,7 +235,7 @@ public static class AddressFormatterInternals
         return null;
     }
 
-    public static Dictionary<string, object?> CleanupInput(
+    internal static Dictionary<string, object?> CleanupInput(
         Dictionary<string, object?> input,
         List<string[]>? replacements = null,
         AddressFormatterOptions? options = null)
@@ -394,7 +394,7 @@ public static class AddressFormatterInternals
         return input;
     }
 
-    public static JsonObject FindTemplate(Dictionary<string, object?> input)
+    internal static JsonObject FindTemplate(Dictionary<string, object?> input)
     {
         var countryCode = GetString(input, "country_code");
         if (!string.IsNullOrEmpty(countryCode) && TemplateData.Templates[countryCode] is JsonObject countryTemplate)
@@ -405,7 +405,7 @@ public static class AddressFormatterInternals
         return TemplateData.Templates["default"]!.AsObject();
     }
 
-    public static string ChooseTemplateText(JsonObject template, Dictionary<string, object?> input)
+    internal static string ChooseTemplateText(JsonObject template, Dictionary<string, object?> input)
     {
         var selected = template["address_template"]?.GetValue<string>()
                        ?? TemplateData.Templates["default"]!["address_template"]!.GetValue<string>();
@@ -423,7 +423,7 @@ public static class AddressFormatterInternals
         return selected;
     }
 
-    public static string CleanupRender(string text)
+    internal static string CleanupRender(string text)
     {
         var replacements = new List<(Regex Regex, string Dest)>
         {
@@ -476,7 +476,7 @@ public static class AddressFormatterInternals
         return text.Trim();
     }
 
-    public static string RenderTemplate(JsonObject template, Dictionary<string, object?> input)
+    internal static string RenderTemplate(JsonObject template, Dictionary<string, object?> input)
     {
         var templateText = ChooseTemplateText(template, input);
 
@@ -584,4 +584,5 @@ public static class AddressFormatterInternals
         return true;
     }
 }
+
 

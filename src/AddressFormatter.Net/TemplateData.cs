@@ -5,13 +5,13 @@ namespace AddressFormatter.Net;
 
 internal static class TemplateData
 {
-    public static readonly JsonObject Templates = LoadObject("templates.json");
-    public static readonly JsonArray Aliases = LoadArray("aliases.json");
-    public static readonly JsonObject StateCodes = LoadObject("state-codes.json");
-    public static readonly JsonObject CountyCodes = LoadObject("county-codes.json");
-    public static readonly JsonObject CountryToLang = LoadObject("country-to-lang.json");
-    public static readonly JsonObject Abbreviations = LoadObject("abbreviations.json");
-    public static readonly JsonObject CountryNames = LoadObject("country-names.json");
+    internal static readonly JsonObject Templates = LoadObject("templates.json");
+    internal static readonly JsonArray Aliases = LoadArray("aliases.json");
+    internal static readonly JsonObject StateCodes = LoadObject("state-codes.json");
+    internal static readonly JsonObject CountyCodes = LoadObject("county-codes.json");
+    internal static readonly JsonObject CountryToLang = LoadObject("country-to-lang.json");
+    internal static readonly JsonObject Abbreviations = LoadObject("abbreviations.json");
+    internal static readonly JsonObject CountryNames = LoadObject("country-names.json");
 
     private static JsonObject LoadObject(string fileName)
     {
@@ -35,3 +35,4 @@ internal static class TemplateData
         return reader.ReadToEnd();
     }
 }
+

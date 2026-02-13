@@ -4,6 +4,15 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <PackageId>AddressFormatter.Net</PackageId>
+    <Title>AddressFormatter.Net</Title>
+    <Description>Address formatter library for international address rendering.</Description>
+    <Authors>Evolit</Authors>
+    <PackageTags>address;formatting;nuget</PackageTags>
+    <RepositoryType>git</RepositoryType>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
 
   <ItemGroup>

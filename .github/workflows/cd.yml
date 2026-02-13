@@ -1,0 +1,68 @@
+name: CD
+
+on:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+
+permissions:
+  contents: read
+
+jobs:
+  publish-nuget:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && (github.event.workflow_run.head_branch == 'main' || github.event.workflow_run.head_branch == 'develop') }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+          cache: true
+
+      - name: Validate NuGet API key
+        if: ${{ secrets.NUGET_API_KEY == '' }}
+        run: |
+          echo "NUGET_API_KEY secret is required for NuGet publish."
+          exit 1
+
+      - name: Compute package version
+        id: version
+        shell: bash
+        run: |
+          BASE="0.1"
+          if [ "${{ github.event.workflow_run.head_branch }}" = "main" ]; then
+            VERSION="${BASE}.${{ github.event.workflow_run.run_number }}"
+          else
+            VERSION="${BASE}.${{ github.event.workflow_run.run_number }}-develop.${{ github.run_number }}"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Restore
+        run: dotnet restore AddressFormatter.slnx
+
+      - name: Build
+        run: dotnet build AddressFormatter.slnx -c Release --no-restore
+
+      - name: Pack
+        run: >-
+          dotnet pack src/AddressFormatter.Net/AddressFormatter.Net.csproj
+          -c Release
+          --no-build
+          -p:PackageVersion=${{ steps.version.outputs.version }}
+          -o ./artifacts
+
+      - name: Push to NuGet
+        run: >-
+          dotnet nuget push "./artifacts/*.nupkg"
+          --api-key "${{ secrets.NUGET_API_KEY }}"
+          --source "https://api.nuget.org/v3/index.json"
+          --skip-duplicate
+
