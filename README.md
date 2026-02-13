@@ -1,5 +1,7 @@
 # AddressFormatter.Net
 
+This project is an implementation of [OpenCageData/address-formatting](https://github.com/OpenCageData/address-formatting/) and is inspired by [fragaria/address-formatter](https://github.com/fragaria/address-formatter).
+
 Address formatter library for international address rendering in .NET.
 
 ## Installation

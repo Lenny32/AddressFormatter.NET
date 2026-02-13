@@ -5,7 +5,7 @@
     <PackageId>AddressFormatter.Net</PackageId>
     <Title>AddressFormatter.Net</Title>
     <Description>Address formatter library for international address rendering.</Description>
-    <Authors>Evolit</Authors>
+    <Authors>Lenaic Cormier</Authors>
     <PackageTags>address;formatting;nuget</PackageTags>
     <RepositoryType>git</RepositoryType>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
