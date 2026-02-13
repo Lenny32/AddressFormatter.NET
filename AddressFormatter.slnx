@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/AddressFormatter.Net/AddressFormatter.Net.csproj" />
+  </Folder>
+  <Folder Name="/test/">
+    <Project Path="test/AddressFormatter.Net.Tests/AddressFormatter.Net.Tests.csproj" />
+  </Folder>
+</Solution>
