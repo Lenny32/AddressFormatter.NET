@@ -1,10 +1,10 @@
 using System.Globalization;
-using System.Text.RegularExpressions;
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 
 namespace AddressFormatter.Net;
 
-internal static class AddressFormatterInternals
+internal static partial class AddressFormatterInternals
 {
     private static readonly HashSet<string> SmallDistrictCountries = new(StringComparer.Ordinal)
     {
@@ -16,11 +16,38 @@ internal static class AddressFormatterInternals
         "state"
     };
 
-    private static readonly HashSet<string> KnownComponents = TemplateData.Aliases
-        .Select(a => a?["alias"]?.GetValue<string>())
-        .Where(a => !string.IsNullOrWhiteSpace(a))
-        .Cast<string>()
+    private static readonly (string Alias, string Name)[] Aliases = TemplateData.Aliases
+        .Select(a => (Alias: a?["alias"]?.GetValue<string>(), Name: a?["name"]?.GetValue<string>()))
+        .Where(a => !string.IsNullOrEmpty(a.Alias) && !string.IsNullOrEmpty(a.Name))
+        .Select(a => (a.Alias!, a.Name!))
+        .ToArray();
+
+    private static readonly (string Alias, string Name)[] AliasesWithoutDistrict = Aliases
+        .Where(a => a.Alias != "district")
+        .ToArray();
+
+    private static readonly (string Alias, string Name)[] AliasesWithDistrictAsStateDistrict =
+    [.. AliasesWithoutDistrict, ("district", "state_district")];
+
+    private static readonly HashSet<string> KnownComponents = Aliases
+        .Select(a => a.Alias)
         .ToHashSet(StringComparer.Ordinal);
+
+    private static readonly (Regex Regex, string Dest)[] CleanupRenderReplacements =
+    [
+        (CleanupTrailingPunctuationWhitespaceRegex(), string.Empty),
+        (CleanupLeadingPunctuationWhitespaceRegex(), string.Empty),
+        (CleanupDashPrefixRegex(), string.Empty),
+        (CleanupDoubleCommaWithWhitespaceRegex(), ", "),
+        (CleanupWhitespaceAroundCommaRegex(), ", "),
+        (CleanupRepeatedSpacesRegex(), " "),
+        (CleanupSpaceBeforeNewlineRegex(), "\n"),
+        (CleanupLeadingCommaAfterNewlineRegex(), "\n"),
+        (CleanupRepeatedCommasRegex(), ","),
+        (CleanupCommaBeforeNewlineRegex(), "\n"),
+        (CleanupIndentAfterNewlineRegex(), "\n"),
+        (CleanupRepeatedNewlinesRegex(), "\n")
+    ];
 
     internal static Dictionary<string, object?> DetermineCountryCode(
         Dictionary<string, object?> input,
@@ -45,7 +72,6 @@ internal static class AddressFormatterInternals
 
         if (TemplateData.Templates[countryCode] is JsonObject template && template["use_country"] is not null)
         {
-            var oldCountryCode = countryCode;
             countryCode = template["use_country"]!.GetValue<string>().ToUpperInvariant();
 
             if (template["change_country"] is not null)
@@ -104,7 +130,7 @@ internal static class AddressFormatterInternals
         var inputKeys = input.Keys.ToList();
         foreach (var key in inputKeys)
         {
-            var snaked = Regex.Replace(key, "([A-Z])", "_$1").ToLowerInvariant();
+            var snaked = ToSnakeCase(key);
             if (KnownComponents.Contains(snaked) && !IsTruthy(GetValue(input, snaked)))
             {
                 if (IsTruthy(GetValue(input, key)))
@@ -123,24 +149,25 @@ internal static class AddressFormatterInternals
     {
         var inputKeys = input.Keys.ToList();
         var countryCode = GetString(input, "country_code");
-        List<(string Alias, string Name)> tailoredAliases;
-
-        if (!string.IsNullOrEmpty(countryCode) && SmallDistrictCountries.Contains(countryCode))
-        {
-            tailoredAliases = GetAliases();
-        }
-        else
-        {
-            tailoredAliases = GetAliases().Where(a => a.Alias != "district").ToList();
-            tailoredAliases.Add(("district", "state_district"));
-        }
+        var tailoredAliases = !string.IsNullOrEmpty(countryCode) && SmallDistrictCountries.Contains(countryCode)
+            ? Aliases
+            : AliasesWithDistrictAsStateDistrict;
 
         foreach (var key in inputKeys)
         {
-            var alias = tailoredAliases.FirstOrDefault(a => a.Alias == key);
-            if (!string.IsNullOrEmpty(alias.Alias) && !IsTruthy(GetValue(input, alias.Name)))
+            foreach (var alias in tailoredAliases)
             {
-                input[alias.Name] = input[alias.Alias];
+                if (alias.Alias != key)
+                {
+                    continue;
+                }
+
+                if (!IsTruthy(GetValue(input, alias.Name)))
+                {
+                    input[alias.Name] = input[alias.Alias];
+                }
+
+                break;
             }
         }
 
@@ -425,22 +452,6 @@ internal static class AddressFormatterInternals
 
     internal static string CleanupRender(string text)
     {
-        var replacements = new List<(Regex Regex, string Dest)>
-        {
-            (new Regex("[\\},\\s]+$", RegexOptions.None, TimeSpan.FromSeconds(1)), string.Empty),
-            (new Regex("^[,\\s]+", RegexOptions.None, TimeSpan.FromSeconds(1)), string.Empty),
-            (new Regex("^- ", RegexOptions.None, TimeSpan.FromSeconds(1)), string.Empty),
-            (new Regex(",\\s*,", RegexOptions.None, TimeSpan.FromSeconds(1)), ", "),
-            (new Regex("[ \\t]+,[ \\t]+", RegexOptions.None, TimeSpan.FromSeconds(1)), ", "),
-            (new Regex("[ \\t][ \\t]+", RegexOptions.None, TimeSpan.FromSeconds(1)), " "),
-            (new Regex("[ \\t]\\n", RegexOptions.None, TimeSpan.FromSeconds(1)), "\n"),
-            (new Regex("\\n,", RegexOptions.None, TimeSpan.FromSeconds(1)), "\n"),
-            (new Regex(",,+", RegexOptions.None, TimeSpan.FromSeconds(1)), ","),
-            (new Regex(",\\n", RegexOptions.None, TimeSpan.FromSeconds(1)), "\n"),
-            (new Regex("\\n[ \\t]+", RegexOptions.None, TimeSpan.FromSeconds(1)), "\n"),
-            (new Regex("\\n\\n+", RegexOptions.None, TimeSpan.FromSeconds(1)), "\n")
-        };
-
         static string Dedupe(IEnumerable<string> inputChunks, string glue, Func<string, string>? modifier = null)
         {
             modifier ??= s => s;
@@ -467,7 +478,7 @@ internal static class AddressFormatterInternals
             return string.Join(glue, result);
         }
 
-        foreach (var replacement in replacements)
+        foreach (var replacement in CleanupRenderReplacements)
         {
             text = replacement.Regex.Replace(text, replacement.Dest, 1);
             text = Dedupe(text.Split('\n'), "\n", s => Dedupe(s.Split(", "), ", "));
@@ -535,13 +546,65 @@ internal static class AddressFormatterInternals
             m => Convert.ToString(GetValue(input, m.Groups[1].Value), CultureInfo.InvariantCulture) ?? string.Empty);
     }
 
-    private static List<(string Alias, string Name)> GetAliases()
+    [GeneratedRegex("[\\},\\s]+$", RegexOptions.None, 1000)]
+    private static partial Regex CleanupTrailingPunctuationWhitespaceRegex();
+
+    [GeneratedRegex("^[,\\s]+", RegexOptions.None, 1000)]
+    private static partial Regex CleanupLeadingPunctuationWhitespaceRegex();
+
+    [GeneratedRegex("^- ", RegexOptions.None, 1000)]
+    private static partial Regex CleanupDashPrefixRegex();
+
+    [GeneratedRegex(",\\s*,", RegexOptions.None, 1000)]
+    private static partial Regex CleanupDoubleCommaWithWhitespaceRegex();
+
+    [GeneratedRegex("[ \\t]+,[ \\t]+", RegexOptions.None, 1000)]
+    private static partial Regex CleanupWhitespaceAroundCommaRegex();
+
+    [GeneratedRegex("[ \\t][ \\t]+", RegexOptions.None, 1000)]
+    private static partial Regex CleanupRepeatedSpacesRegex();
+
+    [GeneratedRegex("[ \\t]\\n", RegexOptions.None, 1000)]
+    private static partial Regex CleanupSpaceBeforeNewlineRegex();
+
+    [GeneratedRegex("\\n,", RegexOptions.None, 1000)]
+    private static partial Regex CleanupLeadingCommaAfterNewlineRegex();
+
+    [GeneratedRegex(",,+", RegexOptions.None, 1000)]
+    private static partial Regex CleanupRepeatedCommasRegex();
+
+    [GeneratedRegex(",\\n", RegexOptions.None, 1000)]
+    private static partial Regex CleanupCommaBeforeNewlineRegex();
+
+    [GeneratedRegex("\\n[ \\t]+", RegexOptions.None, 1000)]
+    private static partial Regex CleanupIndentAfterNewlineRegex();
+
+    [GeneratedRegex("\\n\\n+", RegexOptions.None, 1000)]
+    private static partial Regex CleanupRepeatedNewlinesRegex();
+    private static string ToSnakeCase(string value)
     {
-        return TemplateData.Aliases
-            .Select(a => (Alias: a?["alias"]?.GetValue<string>(), Name: a?["name"]?.GetValue<string>()))
-            .Where(a => !string.IsNullOrEmpty(a.Alias) && !string.IsNullOrEmpty(a.Name))
-            .Select(a => (a.Alias!, a.Name!))
-            .ToList();
+        if (string.IsNullOrEmpty(value))
+        {
+            return value;
+        }
+
+        Span<char> buffer = value.Length <= 128
+            ? stackalloc char[value.Length * 2]
+            : new char[value.Length * 2];
+
+        var position = 0;
+        for (var i = 0; i < value.Length; i++)
+        {
+            var c = value[i];
+            if (char.IsUpper(c))
+            {
+                buffer[position++] = '_';
+            }
+
+            buffer[position++] = char.ToLowerInvariant(c);
+        }
+
+        return new string(buffer[..position]);
     }
 
     private static object? GetValue(Dictionary<string, object?> input, string key)
@@ -584,5 +647,6 @@ internal static class AddressFormatterInternals
         return true;
     }
 }
+
 
 

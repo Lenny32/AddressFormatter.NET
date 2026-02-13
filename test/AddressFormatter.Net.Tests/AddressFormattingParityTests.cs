@@ -1,4 +1,3 @@
-using AddressFormatter.Net;
 using YamlDotNet.Core;
 using YamlDotNet.Core.Events;
 using YamlDotNet.Serialization;
@@ -25,10 +24,10 @@ public class AddressFormattingParityTests
             .Build();
 
         foreach (var testCase in LoadSuite(deserializer, testcasesRoot, "abbreviations", new AddressFormatterOptions
-                 {
-                     Abbreviate = true,
-                     CleanupPostcode = false
-                 }))
+        {
+            Abbreviate = true,
+            CleanupPostcode = false
+        }))
         {
             yield return new object[] { testCase.Name, testCase.Components, testCase.Options, testCase.Expected };
         }

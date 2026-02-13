@@ -1,0 +1,9 @@
+<Project>
+  <PropertyGroup>
+    <LatestTargetFramework>net10.0</LatestTargetFramework>
+    <SupportedTargetFrameworks>net8.0;net9.0;$(LatestTargetFramework)</SupportedTargetFrameworks>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+</Project>

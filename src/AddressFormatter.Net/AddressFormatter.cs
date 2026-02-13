@@ -1,10 +1,18 @@
-using System.Text.Json.Nodes;
-
 namespace AddressFormatter.Net;
 
 public static class AddressFormatter
 {
+    public static object Format(IReadOnlyDictionary<string, object?> input, AddressFormatterOptions? options = null)
+    {
+        return FormatCore(input, options);
+    }
+
     public static object Format(Dictionary<string, object?> input, AddressFormatterOptions? options = null)
+    {
+        return FormatCore(input, options);
+    }
+
+    private static object FormatCore(IReadOnlyDictionary<string, object?> input, AddressFormatterOptions? options)
     {
         options ??= new AddressFormatterOptions();
 
@@ -34,17 +42,24 @@ public static class AddressFormatter
             .Select(x => x?.AsArray())
             .Where(x => x is not null && x.Count >= 2)
             .Select(x => new[] { x![0]!.GetValue<string>(), x[1]!.GetValue<string>() })
-            .ToList() ?? new List<string[]>();
+            .ToList() ?? [];
 
         realInput = AddressFormatterInternals.CleanupInput(realInput, replacements, options);
         var result = AddressFormatterInternals.RenderTemplate(template, realInput);
 
         if (string.Equals(options.Output, "array", StringComparison.Ordinal))
         {
-            return result.Split('\n').Where(s => !string.IsNullOrEmpty(s)).ToArray();
+            return EnumerateNonEmptyLines(result);
         }
 
         return result;
+    }
+
+    public static string FormatString(IReadOnlyDictionary<string, object?> input, AddressFormatterOptions? options = null)
+    {
+        var formatOptions = options ?? new AddressFormatterOptions();
+        formatOptions = formatOptions with { Output = "string" };
+        return (string)Format(input, formatOptions);
     }
 
     public static string FormatString(Dictionary<string, object?> input, AddressFormatterOptions? options = null)
@@ -54,10 +69,31 @@ public static class AddressFormatter
         return (string)Format(input, formatOptions);
     }
 
+    public static string[] FormatLines(IReadOnlyDictionary<string, object?> input, AddressFormatterOptions? options = null)
+    {
+        var formatOptions = options ?? new AddressFormatterOptions();
+        formatOptions = formatOptions with { Output = "array" };
+        return (string[])Format(input, formatOptions);
+    }
+
     public static string[] FormatLines(Dictionary<string, object?> input, AddressFormatterOptions? options = null)
     {
         var formatOptions = options ?? new AddressFormatterOptions();
         formatOptions = formatOptions with { Output = "array" };
         return (string[])Format(input, formatOptions);
+    }
+
+    private static string[] EnumerateNonEmptyLines(string text)
+    {
+        var lines = new List<string>();
+        foreach (var line in text.AsSpan().EnumerateLines())
+        {
+            if (!line.IsEmpty)
+            {
+                lines.Add(line.ToString());
+            }
+        }
+
+        return lines.ToArray();
     }
 }

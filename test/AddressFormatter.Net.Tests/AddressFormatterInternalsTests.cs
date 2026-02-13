@@ -1,4 +1,4 @@
-using AddressFormatter.Net;
+using System.Text.Json.Nodes;
 
 namespace AddressFormatter.Net.Tests;
 
@@ -35,6 +35,17 @@ public class AddressFormatterInternalsTests
         });
 
         Assert.Equal("CH", converted["country_code"]);
+    }
+
+    [Fact]
+    public void DetermineCountryCode_ShouldUseFallbackWhenCountryCodeUnknown()
+    {
+        var converted = AddressFormatterInternals.DetermineCountryCode(new Dictionary<string, object?>
+        {
+            ["country_code"] = "ZZ"
+        }, "nl");
+
+        Assert.Equal("NL", converted["country_code"]);
     }
 
     [Fact]
@@ -120,9 +131,65 @@ public class AddressFormatterInternalsTests
     }
 
     [Fact]
+    public void FindTemplate_ShouldReturnDefaultTemplateWhenCountryCodeMissing()
+    {
+        var template = AddressFormatterInternals.FindTemplate(new Dictionary<string, object?>());
+
+        Assert.NotNull(template["address_template"]);
+        Assert.Equal(TemplateData.Templates["default"]!["address_template"]!.GetValue<string>(), template["address_template"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void ChooseTemplateText_ShouldUseFallbackWhenRoadAndPostcodeMissing()
+    {
+        var template = new JsonObject
+        {
+            ["address_template"] = "{{{road}}}\n{{{postcode}}}",
+            ["fallback_template"] = "{{{city}}}"
+        };
+
+        var selected = AddressFormatterInternals.ChooseTemplateText(template, new Dictionary<string, object?>
+        {
+            ["city"] = "Antwerp"
+        });
+
+        Assert.Equal("{{{city}}}", selected);
+    }
+
+    [Fact]
+    public void CleanupRender_ShouldRemoveDuplicateTokens()
+    {
+        var input = "Main St, Main St\nCity\nCity\n";
+
+        var cleaned = AddressFormatterInternals.CleanupRender(input);
+
+        Assert.Equal("Main St\nCity", cleaned);
+    }
+
+    [Fact]
+    public void RenderTemplate_ShouldApplyPostformatReplace()
+    {
+        var template = new JsonObject
+        {
+            ["address_template"] = "{{{city}}}",
+            ["postformat_replace"] = new JsonArray
+            {
+                new JsonArray { "York", "YORK" }
+            }
+        };
+
+        var rendered = AddressFormatterInternals.RenderTemplate(template, new Dictionary<string, object?>
+        {
+            ["city"] = "New York"
+        });
+
+        Assert.Equal("New YORK\n", rendered);
+    }
+
+    [Fact]
     public void RenderTemplate_ShouldRenderRoad()
     {
-        var render = AddressFormatterInternals.RenderTemplate(new System.Text.Json.Nodes.JsonObject(),
+        var render = AddressFormatterInternals.RenderTemplate(new JsonObject(),
             new Dictionary<string, object?>
             {
                 ["road"] = "House"

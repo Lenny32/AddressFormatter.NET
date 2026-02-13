@@ -1,5 +1,3 @@
-using AddressFormatter.Net;
-
 namespace AddressFormatter.Net.Tests;
 
 public class AddressFormatterTests
